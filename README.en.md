@@ -114,4 +114,4 @@ All tools depend only on the Python standard library; `genius_sim.py` and `clust
 
 ## Scope
 
-This project covers local database research and repair for a discontinued personal device: the public database structures and integer layouts, together with the self-written repair, alignment and simulation tools and the accompanying specification text. The simulated results come from offline analysis; device behavior follows the recorded measurements.
+This project covers local database research and repair for a discontinued personal device: the public database structures and integer layouts, together with the self-written repair, alignment and simulation tools and the accompanying specification text. The simulated results come from offline analysis; device behavior follows the recorded measurements. Contribution guidance lives in [CONTRIBUTING.md](CONTRIBUTING.md); security reports go through [SECURITY.md](SECURITY.md).
