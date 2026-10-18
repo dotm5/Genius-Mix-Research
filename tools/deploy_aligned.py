@@ -9,7 +9,8 @@
 
 步骤:
  1. 备份设备上的 5 个 itdb 到 <backup-dir>/align-<时间戳>/
- 2. 校验：genius_config.data 为 151,212 B；genius_metadata.data 为 168 B
+ 2. 校验：genius_config.data 与 genius_metadata.data 的长度符合目标机型
+    （默认 6G：151,212 B / 168 B；nano 5G 用 --config-len 151192 覆盖）
  3. 覆盖写入并提交
 """
 import argparse, os, shutil, sqlite3, struct, sys, time
@@ -27,6 +28,10 @@ def main():
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--backup-dir', default=os.path.join('out', 'devbk'),
                     help='设备 itdb 快照的存放目录')
+    ap.add_argument('--config-len', type=int, default=FACTORY_LEN,
+                    help='genius_config.data 期望长度；nano 5G 为 151192')
+    ap.add_argument('--meta-len', type=int, default=META_LEN,
+                    help='genius_metadata.data 期望长度')
     a = ap.parse_args()
 
     dst = os.path.join(a.dev, ITLP)
@@ -36,15 +41,15 @@ def main():
     # --- 校验源
     G = sqlite3.connect(os.path.join(a.src, 'Genius.itdb'))
     cfg = G.execute('select length(data), default_num_results, min_num_results from genius_config').fetchone()
-    if cfg[0] != FACTORY_LEN:
-        raise SystemExit('genius_config.data 长度 %d，原厂为 %d' % (cfg[0], FACTORY_LEN))
+    if cfg[0] != a.config_len:
+        raise SystemExit('genius_config.data 长度 %d，目标为 %d' % (cfg[0], a.config_len))
     lens = set(l for (l,) in G.execute('select length(data) from genius_metadata'))
-    if lens != {META_LEN}:
-        raise SystemExit('genius_metadata.data 长度 %s，应为 %d' % (lens, META_LEN))
+    if lens != {a.meta_len}:
+        raise SystemExit('genius_metadata.data 长度 %s，应为 %d' % (lens, a.meta_len))
     n_md = G.execute('select count(*) from genius_metadata').fetchone()[0]
     n_sim = G.execute('select count(*) from genius_similarities').fetchone()[0]
     print('源校验 OK: config=%d B (target=%d min=%d), metadata=%d 行 × %d B, similarities=%d 行'
-          % (cfg[0], cfg[1], cfg[2], n_md, META_LEN, n_sim))
+          % (cfg[0], cfg[1], cfg[2], n_md, a.meta_len, n_sim))
 
     ts = time.strftime('align-%Y%m%d-%H%M%S')
     bk = os.path.join(a.backup_dir, ts)

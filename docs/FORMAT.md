@@ -217,6 +217,6 @@ Mix 的初始生成在 target 10 处停止。播放期间 `NextMixTrackCommand` 
 
 `tools/apply_genius_mix_fix.py`（兼容方案，48B / 108B 配置）、`tools/cluster_align.py`（原始配置方案，168B metadata + 库级 similarities）、`tools/genius_sim.py`（离线模拟）、`tools/deploy_aligned.py`（快照备份 + 部署）、`tools/boundary_matrix.py`（边界夹具）、`tools/check_links.py`（文档相对链接检查）。全部工具仅依赖 Python 标准库，模拟与对齐可完全离线运行。原 108B 工具在来源记录中有真机可用结果。
 
-相关文档：[对齐文档](ALIGN.md)、[边界记录](BOUNDARY.md)、[真机轮次记录](ROUNDS.md)、[命名说明](NAMING.md)、[增益说明](REPLAYGAIN.md)。
+相关文档：[对齐文档](ALIGN.md)、[边界记录](BOUNDARY.md)、[真机轮次记录](ROUNDS.md)、[跨代验证](CROSSGEN.md)、[命名说明](NAMING.md)、[增益说明](REPLAYGAIN.md)。
 
-早期分量大小为 49/42/32/25/16/13/8/2 的样本给出一个边界：小容器满足 Mix 的两首门槛时，单曲歌单的默认十首仍可能不足；可用性同时取决于候选图、约束链与状态机。验证设备范围为 nano 6G。
+早期分量大小为 49/42/32/25/16/13/8/2 的样本给出一个边界：小容器满足 Mix 的两首门槛时，单曲歌单的默认十首仍可能不足；可用性同时取决于候选图、约束链与状态机。验证设备范围为 nano 6G 与 nano 5G；两代的分歧点见[跨代验证](CROSSGEN.md)。

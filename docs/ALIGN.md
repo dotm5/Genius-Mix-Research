@@ -119,4 +119,5 @@ python tools/deploy_aligned.py --src <输出目录> --dev <盘符>
 - 设备从不通告 `SupportsSoundCheck`，同步后 `item.relative_volume` 可能被重置为 0。
 - 空容器（成员数为 0）出现在列表中，无法播放。
 - 本机型上容器数量、成员数（1 … 189）与流派跨度均不设上限。
+- 第 5 代机型（nano 5G）：第 7 条 `op=1 field=20` 需删除，等价配置为 151,192B，其余六条逐字节保留，见[跨代验证](CROSSGEN.md)。
 - 数据保留：`genius_config`、`genius_metadata`、`genius_similarities` 三张表没有时间列，Mix 歌单按需生成，重新同步是唯一的失效路径。`op=4` 的 604800 秒窗口作用于跳过统计（只看最近一周的记录），与数据年龄无关。
