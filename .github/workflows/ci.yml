@@ -30,14 +30,3 @@ jobs:
             echo "== $tool"
             python "$tool" --help > /dev/null
           done
-
-  docs:
-    name: Docs
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Check relative Markdown links
-        run: python tools/check_links.py

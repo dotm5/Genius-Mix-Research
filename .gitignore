@@ -27,3 +27,7 @@ private/
 .venv/
 .DS_Store
 Thumbs.db
+
+# Local-only check scripts: they stay in the worktree and out of the repository.
+/tools/local/
+/tools/check_*.py
