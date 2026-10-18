@@ -64,7 +64,7 @@ Extending `genius_metadata.data` from 32B to **168B (21 u64 words)** makes the u
 
 Filling `metadata[0]` with an id from that table makes the `op=2` adjacency whitelist converge candidates by genre. The table has 33 connected components, several of them **complete graphs**: assigning one family of genres to different clusters inside the same component keeps the family mutually adjacent and filters across families. Candidates come from `genius_similarities` through a **library-level** pool; narrowing to container level leaves small containers short of candidates.
 
-Full procedure, parameters and validation are in the [alignment document](docs/ALIGN.md); device boundary measurements in the [boundary record](docs/BOUNDARY.md), replay gain in the [gain note](docs/REPLAYGAIN.md), and Mix naming and localization in the [naming note](docs/NAMING.md) (all Chinese).
+Full procedure, parameters and validation are in the [alignment document](docs/ALIGN.md); device boundary measurements in the [boundary record](docs/BOUNDARY.md), the per-round device log in the [device test rounds](docs/ROUNDS.md), replay gain in the [gain note](docs/REPLAYGAIN.md), and Mix naming and localization in the [naming note](docs/NAMING.md) (all Chinese).
 
 ## Quick start
 

@@ -157,6 +157,8 @@ skip != 0
 
 全部满足返回 1，即最近七天多次跳过、跳过占比超过 50% 的曲目被拒绝。`play_gap=0` 关闭该比较维度。
 
+`item_stats` 的时间列（`date_played`、`date_skipped`）为 Mac epoch（2001-01-01 00:00:00 UTC）秒数，与 Unix 时间相差 978,307,200 秒。写入时以 Mac epoch 为基准；用 Unix 时间会把时间点推到 2057 年，`now - date_skipped` 成为大负数，窗口判据放行该候选。校验基准：`813996291` 对应 2026-10-18。
+
 op=5 首轮从 1..100 抽样，超过 70 暂拒；状态推进后阈值升为 100，不再据此拒绝。该指令携带两个 u32 参数。
 
 ## 5 种子抽样与长度门控
@@ -175,6 +177,8 @@ LCG 更新式为 `s = 1103515245*s + 12345`。早期记录索引为 `(rand()+1)%
 | 单曲 Genius 歌单 | 默认 25 | 默认 10 | 配置列 default_num_results / min_num_results |
 
 停止判据为对象有效且 `count == target`；可用判据为对象有效且 `count >= minimum`。Mix 准备路径记录有“下一首为空或轮计数 >20 则失败”的分支。结果码：1 成功，2 初始化无效，3 unplayable。
+
+Mix 的初始生成在 target 10 处停止。播放期间 `NextMixTrackCommand` 每次把队列补到至少 5 首待播，补货走追加路径，独立于 target 判据；队列构造时带 `reserve 50` 容量提示，真机连续播放停在 50 首（第 8 轮）。Mix 长度分为三个概念：初始生成目标 10、队列容量 50、可用下限 2。
 
 生成路径在内存中构造歌单；静态检索覆盖的生成路径中没有向容器成员回写的语句。
 
@@ -213,6 +217,6 @@ LCG 更新式为 `s = 1103515245*s + 12345`。早期记录索引为 `(rand()+1)%
 
 `tools/apply_genius_mix_fix.py`（兼容方案，48B / 108B 配置）、`tools/cluster_align.py`（原始配置方案，168B metadata + 库级 similarities）、`tools/genius_sim.py`（离线模拟）、`tools/deploy_aligned.py`（快照备份 + 部署）、`tools/boundary_matrix.py`（边界夹具）、`tools/check_links.py`（文档相对链接检查）。全部工具仅依赖 Python 标准库，模拟与对齐可完全离线运行。原 108B 工具在来源记录中有真机可用结果。
 
-相关文档：[对齐文档](ALIGN.md)、[边界记录](BOUNDARY.md)、[命名说明](NAMING.md)、[增益说明](REPLAYGAIN.md)。
+相关文档：[对齐文档](ALIGN.md)、[边界记录](BOUNDARY.md)、[真机轮次记录](ROUNDS.md)、[命名说明](NAMING.md)、[增益说明](REPLAYGAIN.md)。
 
 早期分量大小为 49/42/32/25/16/13/8/2 的样本给出一个边界：小容器满足 Mix 的两首门槛时，单曲歌单的默认十首仍可能不足；可用性同时取决于候选图、约束链与状态机。验证设备范围为 nano 6G。

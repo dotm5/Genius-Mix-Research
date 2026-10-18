@@ -62,7 +62,7 @@ Genius 由四个独立数据面构成：Kind-32 容器保存候选种子，`geni
 
 再把 `metadata[0]` 填成簇表内的 id，`op=2` 的簇邻接白名单就会按流派收敛候选。簇表有 33 个连通分量，其中若干是**完全图**；把同一家族的流派放进同一分量的不同簇，族内互兼容、族间被过滤。候选仍来自 `genius_similarities`，使用**库级**池——收窄到容器级会让小容器候选不足。
 
-完整方案、参数与校验见[对齐文档](docs/ALIGN.md)；边界实测见[边界记录](docs/BOUNDARY.md)，回放增益见[增益说明](docs/REPLAYGAIN.md)，Mix 名称与本地化见[命名说明](docs/NAMING.md)。
+完整方案、参数与校验见[对齐文档](docs/ALIGN.md)；边界实测见[边界记录](docs/BOUNDARY.md)，逐轮真机验证见[真机轮次记录](docs/ROUNDS.md)，回放增益见[增益说明](docs/REPLAYGAIN.md)，Mix 名称与本地化见[命名说明](docs/NAMING.md)。
 
 ## 快速上手
 

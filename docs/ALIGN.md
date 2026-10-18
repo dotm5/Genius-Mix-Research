@@ -80,6 +80,8 @@ key(meta, index):
 | `coarse` | 8 / 12 / 16 个值循环 | distance 约束最强 |
 | `mixed`（默认） | 24 / 48 / 全局唯一 | 折中 |
 
+真机（第 10 轮）：`coarse` 下 8 个容器全部可播，键池最小的档位同样不会被间隔约束耗尽；默认仍取 `mixed`。
+
 ## 7 校验
 
 离线模拟（`tools/genius_sim.py`，Python RNG 近似设备 LCG）：
@@ -89,7 +91,16 @@ key(meta, index):
 | Genius Mix（target 10 / minimum 2），8 容器 × 12 个随机种子 | 96/96 可用 |
 | 按曲目歌单（target 25 / minimum 10），189 首 | 189/189 可用，均达 25 首 |
 
-真机（第五轮）：17 个非空容器，成员数覆盖 1 … 189，流派覆盖 1 … 7，全部可播并带 Mix 封面。
+真机校验：
+
+| 轮次 | 设置 / 场景 | 结果 |
+|---|---|---|
+| 5 | 17 个非空容器，成员 1 … 189，流派 1 … 7 | 全部可播并带 Mix 封面 |
+| 6 | `default_num_results=50, min_num_results=5` | 单曲歌单生成 50 首；容器仅 8 首的 K-Pop 同样到 50 首，候选池为库级 |
+| 7 | `default_num_results=50, min_num_results=100` | 三首 Dance 曲目的单曲歌单在 target 50 处停止，`50 >= 100`，返回 unplayable |
+| 6 / 7 | 8 个 Mix | 长度不受这两列影响 |
+
+两条阈值的取值来源由此闭合：target = `default_num_results`，minimum = `min_num_results`。Mix 走路径固定参数，初始目标 10、可用下限 2，播放期的队列容量见[格式文档](FORMAT.md) §5。逐轮改动见[真机轮次记录](ROUNDS.md)。
 
 ## 8 操作顺序
 
@@ -108,3 +119,4 @@ python tools/deploy_aligned.py --src <输出目录> --dev <盘符>
 - 设备从不通告 `SupportsSoundCheck`，同步后 `item.relative_volume` 可能被重置为 0。
 - 空容器（成员数为 0）出现在列表中，无法播放。
 - 本机型上容器数量、成员数（1 … 189）与流派跨度均不设上限。
+- 数据保留：`genius_config`、`genius_metadata`、`genius_similarities` 三张表没有时间列，Mix 歌单按需生成，重新同步是唯一的失效路径。`op=4` 的 604800 秒窗口作用于跳过统计（只看最近一周的记录），与数据年龄无关。
