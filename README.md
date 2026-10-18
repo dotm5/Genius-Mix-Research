@@ -2,6 +2,8 @@
 
 **简体中文** | [English](README.en.md)
 
+[![CI](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml/badge.svg)](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml)
+
 iPod nano 第 6 代（已停产）的 Genius Mix 离线修复工具与格式规范。仓库给出设备 `.itdb` 数据库的字节级布局、Genius 约束链求值语义、Mix 状态机门槛，以及一套仅依赖 Python 标准库的修复、对齐与模拟工具。文末的发现路径给出结论从容器枚举到字节码消融的收敛过程。
 
 Genius 由四个独立数据面构成：Kind-32 容器保存候选种子，`genius_similarities` 提供候选边，`genius_metadata` 存储 4 槽约束键，`genius_config.data` 是逐条约束的字节码。Mix 的可用阈值为 `count >= 2`（目标 10 首）；按曲目生成歌单的默认目标为 25 首、下限 10 首。
@@ -92,6 +94,7 @@ python tools/apply_genius_mix_fix.py "$dbDir" --backup-dir "$backupDir"
 | `tools/genius_sim.py` | 离线模拟器：按固件语义复现生成流程，部署前校验 |
 | `tools/deploy_aligned.py` | 部署：快照备份 + 输入校验 + 写入 |
 | `tools/boundary_matrix.py` | 边界测试夹具：按规格合成 Kind-32 容器 |
+| `tools/check_links.py` | 文档检查：校验 Markdown 相对链接 |
 
 全部工具只依赖 Python 标准库；`genius_sim.py` 与 `cluster_align.py` 可完全离线运行。
 

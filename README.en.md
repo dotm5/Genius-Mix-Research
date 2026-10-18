@@ -2,6 +2,8 @@
 
 **English** | [简体中文](README.md)
 
+[![CI](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml/badge.svg)](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml)
+
 Offline Genius Mix repair and format specification for the iPod nano (6th generation, discontinued). The repository documents the byte-level layout of the device `.itdb` databases, the Genius constraint-chain evaluation semantics and the Mix state-machine thresholds, and ships a toolchain that depends only on the Python standard library. The discovery path at the end records how the results converged from container enumeration to bytecode ablation.
 
 Genius has four independent data planes: the Kind-32 container holds candidate seeds, `genius_similarities` supplies candidate edges, `genius_metadata` stores four constraint keys, and `genius_config.data` carries the per-constraint bytecode. A Genius Mix is usable at `count >= 2` (target 10 tracks); a per-track playlist defaults to a target of 25 and a minimum of 10.
@@ -94,6 +96,7 @@ Eject safely and restart the iPod, then check playback. Sync software overwrites
 | `tools/genius_sim.py` | offline simulator: replays the generation pipeline for pre-deployment checks |
 | `tools/deploy_aligned.py` | deployment: snapshot backup, input validation, write |
 | `tools/boundary_matrix.py` | boundary fixture: synthesizes Kind-32 containers from a spec |
+| `tools/check_links.py` | docs check: validates relative Markdown links |
 
 All tools depend only on the Python standard library; `genius_sim.py` and `cluster_align.py` run fully offline.
 

@@ -211,7 +211,7 @@ LCG 更新式为 `s = 1103515245*s + 12345`。早期记录索引为 `(rand()+1)%
 
 ## 7 工具链
 
-`tools/apply_genius_mix_fix.py`（兼容方案，48B / 108B 配置）、`tools/cluster_align.py`（原始配置方案，168B metadata + 库级 similarities）、`tools/genius_sim.py`（离线模拟）、`tools/deploy_aligned.py`（快照备份 + 部署）、`tools/boundary_matrix.py`（边界夹具）。全部工具仅依赖 Python 标准库，模拟与对齐可完全离线运行。原 108B 工具在来源记录中有真机可用结果。
+`tools/apply_genius_mix_fix.py`（兼容方案，48B / 108B 配置）、`tools/cluster_align.py`（原始配置方案，168B metadata + 库级 similarities）、`tools/genius_sim.py`（离线模拟）、`tools/deploy_aligned.py`（快照备份 + 部署）、`tools/boundary_matrix.py`（边界夹具）、`tools/check_links.py`（文档相对链接检查）。全部工具仅依赖 Python 标准库，模拟与对齐可完全离线运行。原 108B 工具在来源记录中有真机可用结果。
 
 相关文档：[对齐文档](ALIGN.md)、[边界记录](BOUNDARY.md)、[命名说明](NAMING.md)、[增益说明](REPLAYGAIN.md)。
 

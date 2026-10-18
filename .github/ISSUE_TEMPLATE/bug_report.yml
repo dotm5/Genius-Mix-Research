@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a tool failure or an incorrect statement in the documents
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep device databases private: describe the schema and the numbers instead of attaching `.itdb` files or library contents.
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Model and firmware version
+      placeholder: iPod nano 6G, firmware 1.2
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - tools/apply_genius_mix_fix.py
+        - tools/cluster_align.py
+        - tools/genius_sim.py
+        - tools/deploy_aligned.py
+        - tools/boundary_matrix.py
+        - document statement (docs/)
+        - other
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.12"
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and output
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
