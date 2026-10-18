@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.md)
 
-[![CI](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml/badge.svg)](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml)
+[![CI](https://github.com/dotm5/Genius-Mix-Research/actions/workflows/ci.yml/badge.svg)](https://github.com/dotm5/Genius-Mix-Research/actions/workflows/ci.yml)
 
 A study of the iTunes Genius Mix pipeline on the iPod nano (5th and 6th generation). The repository documents the byte-level layout of the device `.itdb` databases, the Genius constraint-chain evaluation semantics, the cluster adjacency graph, the Mix state-machine thresholds and playlist gating, and ships a toolchain that depends only on the Python standard library. The discovery path at the end records how the results converged from container enumeration to bytecode ablation.
 
@@ -58,11 +58,11 @@ The repair tool writes four valid `genius_id` values at same-container strides 1
 | `cfg_notable` | `#1..#6`, no large table | 120 B | usable |
 | `cfg_tableonly` | `#0` 591-entry table | 151,140 B | fails |
 
-`cfg_tableonly` fails at entry 7, `op=1 field=20`: field 20 exceeds the four slots of the 32B metadata, the evaluator reads key 0, the seed consumption sets that key's count to 1, and every later candidate falls inside the spacing constraint, holding the count at 1. The third offline isolation round reproduced this result entry by entry. `cfg_limits` (108B) is the compatible option, keeping two distance constraints and one skip_count.
+`cfg_tableonly` (the 591-entry table alone) fails on the offline model. The device baseline (rounds 11-16) puts admission on the `op=2` entry: a candidate whose label hits the cluster table passes, a miss returns 2, and the entry absent from the config leaves the constraint uninstantiated. Neither the metadata length nor the `field=20` key changes playability, see the [cross-generation note](docs/CROSSGEN.md) §2. `cfg_limits` (108B) is the compact option, keeping two distance constraints and one skip_count.
 
 ## Original config path
 
-Extending `genius_metadata.data` from 32B to **168B (21 u64 words)** makes the unmodified 151,212B original config run: entry 7 reads a real key instead of the out-of-range key 0, the stall clears, and the 591-entry `op=2` cluster table takes effect.
+The unmodified 151,212B config runs on both generations, carried by the 168B (21 u64 words) layout of `genius_metadata.data`: entry 7 then reads a real per-track key for `field=20`, so the spacing constraint applies per track. With the 32B layout that entry reads key 0, and playability follows the `op=2` hit instead of the layout length ([cross-generation note](docs/CROSSGEN.md) §2).
 
 Filling `metadata[0]` with an id from that table makes the `op=2` adjacency whitelist converge candidates by genre. The table has 33 connected components, several of them **complete graphs**: assigning one family of genres to different clusters inside the same component keeps the family mutually adjacent and filters across families. Candidates come from `genius_similarities` through a **library-level** pool; narrowing to container level leaves small containers short of candidates.
 
@@ -109,7 +109,7 @@ All tools depend only on the Python standard library; `genius_sim.py` and `clust
 2. **Converge on the call site**: follow the `genius_metadata` lookups and `genius_config.data` reads to the Mix walker and the `NextMixTrack` executor.
 3. **Decode the bytecode**: parse `data` with opcode-determined lengths to obtain op=1/3 distance, op=2 cluster adjacency, op=4 skip statistics and op=5 random jitter, and reconstruct the seven entries and control tail of the 151,212B original config.
 4. **Bisect the config**: hold containers and similarities fixed, replace only `data`, and obtain 48B / 52B / 108B / 120B usable against 151,140B failing.
-5. **Isolate the conflict**: converge the failure on `op=1 field=20` against the 32B metadata key 0, where the count stalls; the 168B, 21-word extension clears it.
+5. **Isolate the conflict**: the offline model converges the failure on `op=1 field=20` reading key 0 from the 32B metadata.
 6. **Ship the repair**: write 32B constraint keys at same-container strides 1/5/9/13, with SQLite snapshot backup and a single write transaction.
 7. **Decode the cluster table**: the `op=2` adjacency table is an undirected graph, all 591 nodes carry self-loops, and several components are complete graphs; mapping genres into distinct clusters of one component reproduces factory semantics.
 8. **Correct the failure point**: offline isolation placed the failure at `op=1 field=20` reading past the 32B metadata. Device-side single-variable runs show the original seven entries usable with both 32B and 168B metadata, with admission decided by whether `op=2` hits the cluster table.

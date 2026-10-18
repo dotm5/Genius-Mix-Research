@@ -55,7 +55,7 @@ ORDER BY item_to_container.physical_order;
 | 16 | 小端 u64 | distance 字段 2 |
 | 24 | 小端 u64 | distance 字段 3 |
 
-读取器按 `len(data) >> 3` 处理变长 u64 数组，32B 是基线长度。查询无行或 `data` 为空时，种子装载失败。把长度扩展到 21 个 u64（168B）后，原始配置第 7 条 `op=1 field=20` 读到真实键，配置不改动即可运行；布局与实测见[对齐文档](ALIGN.md)。
+读取器按 `len(data) >> 3` 处理变长 u64 数组，32B 是基线长度。查询无行或 `data` 为空时，种子装载失败。把长度扩展到 21 个 u64（168B）后，原始配置第 7 条 `op=1 field=20` 按曲目取键；32B 下该条目取键 0。准入由 `op=2` 的命中与否决定，长度不参与可播性判定，见[跨代验证](CROSSGEN.md) §2。布局与实测见[对齐文档](ALIGN.md)。
 
 原工具按同容器索引 `k` 写入 `[(k+1)%N,(k+5)%N,(k+9)%N,(k+13)%N]` 对应的四个合法 `genius_id`，得到每行 32B。该构造早期称为“同容器稠密连通图”。步长 1 使这个引用图可绕行全部成员；端侧把这些槽位解释为约束键，候选可达性由 `genius_similarities` 提供。每节点最多四个不同引用，小容器允许重复或包含自身。
 
@@ -149,7 +149,7 @@ key(meta, index):
     return meta.u64[index] if index < meta.count else 0
 ```
 
-32 字节的 metadata 只有 4 个槽，`field=20` 因此恒取键 0。
+32 字节的 metadata 只有 4 个槽，`field=20` 因此恒取键 0；准入判据由 `op=2` 给出，见[跨代验证](CROSSGEN.md) §2。
 
 distance 以 `metadata[field]` 为键。初始有效距离为 `distance + [1..jitter]`，jitter=0 时不附加随机项。键未出现则通过；已有键计数小于有效距离则返回 1。消费时命中键重置为 2，其他键递增，新键插入计数 1。轮询每轮把有效距离减 1，直至 floor。
 

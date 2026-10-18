@@ -2,7 +2,7 @@
 
 **简体中文** | [English](README.en.md)
 
-[![CI](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml/badge.svg)](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml)
+[![CI](https://github.com/dotm5/Genius-Mix-Research/actions/workflows/ci.yml/badge.svg)](https://github.com/dotm5/Genius-Mix-Research/actions/workflows/ci.yml)
 
 针对 iPod nano 第 5 代与第 6 代的 iTunes Genius Mix 研究。仓库给出设备 `.itdb` 数据库的字节级布局、Genius 约束链求值语义、簇邻接图、Mix 状态机门槛与歌单门控，以及一套仅依赖 Python 标准库的修复、对齐、聚类与模拟工具。文末的发现路径给出结论从容器枚举到字节码消融的收敛过程。
 
@@ -56,11 +56,11 @@ Genius 由四个独立数据面构成：Kind-32 容器保存候选种子，`geni
 | `cfg_notable` | `#1..#6`，无大表 | 120 B | 可用 |
 | `cfg_tableonly` | `#0` 591 项大表 | 151,140 B | 失败 |
 
-`cfg_tableonly` 的失败点定位在第 7 条 `op=1 field=20`：field 20 超出 32B metadata 的四个槽位，求值器取键 0，种子消费后该键计数为 1，后续候选全部落在间隔约束内，计数停在 1。第三轮离线隔离逐项复现了该结果。108B `cfg_limits` 是兼容方案，保留两条 distance 与一条 skip_count，详见[格式文档](docs/FORMAT.md)。
+`cfg_tableonly`（只含 591 项大表）在离线模型上失败。设备基线（第 11–16 轮）把准入定在 `op=2` 的命中与否：命中通过，未命中返回 2，该条目缺席时约束不实例化；metadata 长度与 `field=20` 的取值都不改变可播性，见[跨代验证](docs/CROSSGEN.md) §2。108B `cfg_limits` 是保留两条 distance 与一条 skip_count 的紧凑方案，详见[格式文档](docs/FORMAT.md)。
 
 ## 原始配置路径
 
-把 `genius_metadata.data` 从 32B 扩展到 **168B（21 个 u64）** 后，原始 151,212B 配置可以不加修改地运行：第 7 条的 `field=20` 从越界键 0 变为真实约束键，停滞解除，`op=2` 的 591 项簇表也恢复作用。
+原始 151,212B 配置在两代设备上逐字节不改即可运行，载体是 `genius_metadata.data` 的 168B（21 个 u64）布局：第 7 条的 `field=20` 因此按曲目读到真实键，间隔约束对每首曲目生效。32B 布局下该条目取键 0，可播性由 `op=2` 的命中与否决定，与长度无关（[跨代验证](docs/CROSSGEN.md) §2）。
 
 再把 `metadata[0]` 填成簇表内的 id，`op=2` 的簇邻接白名单就会按流派收敛候选。簇表有 33 个连通分量，其中若干是**完全图**；把同一家族的流派放进同一分量的不同簇，族内互兼容、族间被过滤。候选仍来自 `genius_similarities`，使用**库级**池——收窄到容器级会让小容器候选不足。
 
@@ -107,10 +107,10 @@ python tools/apply_genius_mix_fix.py "$dbDir" --backup-dir "$backupDir"
 2. **收敛调用点**：沿 `genius_metadata` 查询与 `genius_config.data` 读取点，把生成逻辑收敛到 Mix 遍历器与 `NextMixTrack` 执行器。
 3. **解码字节码**：按 opcode 决定长度解析 `data`，得到 op=1/3 distance、op=2 簇邻接、op=4 统计过滤、op=5 随机抖动，并还原 151,212B 原配置的七条条目与控制尾。
 4. **二分消融**：固定容器与 similarities，仅替换 `data`，得到 48B / 52B / 108B / 120B 可用与 151,140B 失败。
-5. **隔离冲突**：把失败点收敛到 `op=1 field=20` 对 32B metadata 的键 0 停滞；168B 的 21 槽扩展解除该冲突。
+5. **隔离冲突**：离线模型把失败点收敛到 `op=1 field=20` 在 32B metadata 下的键 0 停滞。
 6. **落地修复**：按同容器步长 1/5/9/13 写入 32B 约束键，配套 SQLite 快照备份与单事务写入。
 7. **解码簇表**：`op=2` 的邻接表为无向图，591 个节点全部带自环，含多个完全图分量；把流派映射到同一分量的不同簇即可获得出厂语义。
-8. **修正失败点**：离线隔离把失败点收敛到第 7 条 `op=1 field=20` 对 32B metadata 的越界读取。真机单变量对照显示原始七条在 32B 与 168B 两种 metadata 下均可用，准入判据由 `op=2` 的命中与未命中决定。
+8. **修正失败点**：离线模型把失败点收敛到第 7 条 `op=1 field=20` 对 32B metadata 的越界读取；第 11–16 轮的真机单变量序列把准入判据定在 `op=2` 的命中与未命中，原七条在 32B 与 168B 两种 metadata 下均可播。
 9. **边界实测**：合成 1 … 189 个成员、1 … 7 个流派的容器，确认容器数量、成员数与流派跨度均无上限；空容器可见但不可播；重复成员行无副作用。
 10. **跨代复核**：在 nano 5G 上重跑单变量序列，确认两代共用同一份原厂 `genius_config.data`，结构差异只在 `Dynamic.itdb.item_stats` 的一列。
 11. **自定义聚类**：以 `op=2` 的完全分量为标签池，把自定义聚类映射到簇 id，由 `tools/custom_graph.py` 写出并校验。
