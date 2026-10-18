@@ -1,12 +1,14 @@
-# iPod nano 6G Genius 数据库格式与 Mix 修复
+# Genius Mix 研究：数据格式、约束链与离线工具
 
 **简体中文** | [English](README.en.md)
 
 [![CI](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml/badge.svg)](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml)
 
-iPod nano 第 6 代（已停产）的 Genius Mix 离线修复工具与格式规范。仓库给出设备 `.itdb` 数据库的字节级布局、Genius 约束链求值语义、Mix 状态机门槛，以及一套仅依赖 Python 标准库的修复、对齐与模拟工具。文末的发现路径给出结论从容器枚举到字节码消融的收敛过程。
+针对 iPod nano 第 5 代与第 6 代的 iTunes Genius Mix 研究。仓库给出设备 `.itdb` 数据库的字节级布局、Genius 约束链求值语义、簇邻接图、Mix 状态机门槛与歌单门控，以及一套仅依赖 Python 标准库的修复、对齐、聚类与模拟工具。文末的发现路径给出结论从容器枚举到字节码消融的收敛过程。
 
-Genius 由四个独立数据面构成：Kind-32 容器保存候选种子，`genius_similarities` 提供候选边，`genius_metadata` 存储 4 槽约束键，`genius_config.data` 是逐条约束的字节码。Mix 的可用阈值为 `count >= 2`（目标 10 首）；按曲目生成歌单的默认目标为 25 首、下限 10 首。
+Genius 由四个独立数据面构成：Kind-32 容器保存候选种子，`genius_similarities` 提供候选边，`genius_metadata` 存储约束键，`genius_config.data` 是逐条约束的字节码。Mix 的可用阈值为 `count >= 2`（目标 10 首）；按曲目生成歌单的默认目标为 25 首、下限 10 首。
+
+第 5 代与第 6 代使用同一份 151,212 字节的原厂 `genius_config.data`，数据库结构只差 `Dynamic.itdb.item_stats` 的一列。逐项对照见[跨代验证](docs/CROSSGEN.md)。
 
 ## 机理总览
 
@@ -42,7 +44,7 @@ Genius 由四个独立数据面构成：Kind-32 容器保存候选种子，`geni
            达到目标停止；count >= minimum 且对象有效即可用
 ```
 
-修复工具按同容器步长 1/5/9/13 写入四个合法 `genius_id`，得到每行 32B 的约束键。早期资料把这种构造称为“同容器稠密连通图”；第三轮解码确认槽位语义为约束键，候选可达性由 `genius_similarities` 决定。每节点最多四个引用，小容器允许重复键。
+修复工具按同容器步长 1/5/9/13 写入四个合法 `genius_id`，得到每行 32B 的约束键。该构造早期称为“同容器稠密连通图”；第三轮解码确认槽位语义为约束键，候选可达性由 `genius_similarities` 提供。每节点最多四个引用，小容器允许重复键。
 
 ## 消融实验
 
@@ -62,7 +64,7 @@ Genius 由四个独立数据面构成：Kind-32 容器保存候选种子，`geni
 
 再把 `metadata[0]` 填成簇表内的 id，`op=2` 的簇邻接白名单就会按流派收敛候选。簇表有 33 个连通分量，其中若干是**完全图**；把同一家族的流派放进同一分量的不同簇，族内互兼容、族间被过滤。候选仍来自 `genius_similarities`，使用**库级**池——收窄到容器级会让小容器候选不足。
 
-完整方案、参数与校验见[对齐文档](docs/ALIGN.md)；边界实测见[边界记录](docs/BOUNDARY.md)，逐轮真机验证见[真机轮次记录](docs/ROUNDS.md)，回放增益见[增益说明](docs/REPLAYGAIN.md)，Mix 名称与本地化见[命名说明](docs/NAMING.md)，第 5 代机型上的验证结果见[跨代验证](docs/CROSSGEN.md)。
+完整方案、参数与校验见[对齐文档](docs/ALIGN.md)；边界实测见[边界记录](docs/BOUNDARY.md)，逐轮真机验证见[真机轮次记录](docs/ROUNDS.md)，回放增益见[增益说明](docs/REPLAYGAIN.md)，Mix 名称与本地化见[命名说明](docs/NAMING.md)，设备级差异见[跨代验证](docs/CROSSGEN.md)。
 
 ## 快速上手
 
@@ -91,10 +93,11 @@ python tools/apply_genius_mix_fix.py "$dbDir" --backup-dir "$backupDir"
 |---|---|
 | `tools/apply_genius_mix_fix.py` | 兼容方案：保留容器，写入 32B 约束键与 48B / 108B 配置 |
 | `tools/cluster_align.py` | 原始配置方案：簇对齐 + 168B metadata + 库级 similarities |
+| `tools/cluster_graph.py` | 解码 `op=2` 簇邻接表，输出连通分量与完全分量 |
+| `tools/custom_graph.py` | 自定义聚类：按 spec 写出 metadata 首槽与 similarities，并校验容器内标签相邻 |
 | `tools/genius_sim.py` | 离线模拟器：按固件语义复现生成流程，部署前校验 |
 | `tools/deploy_aligned.py` | 部署：快照备份 + 输入校验 + 写入 |
 | `tools/boundary_matrix.py` | 边界测试夹具：按规格合成 Kind-32 容器 |
-| `tools/check_links.py` | 文档检查：校验 Markdown 相对链接 |
 
 全部工具只依赖 Python 标准库；`genius_sim.py` 与 `cluster_align.py` 可完全离线运行。
 
@@ -107,9 +110,11 @@ python tools/apply_genius_mix_fix.py "$dbDir" --backup-dir "$backupDir"
 5. **隔离冲突**：把失败点收敛到 `op=1 field=20` 对 32B metadata 的键 0 停滞；168B 的 21 槽扩展解除该冲突。
 6. **落地修复**：按同容器步长 1/5/9/13 写入 32B 约束键，配套 SQLite 快照备份与单事务写入。
 7. **解码簇表**：`op=2` 的邻接表为无向图，591 个节点全部带自环，含多个完全图分量；把流派映射到同一分量的不同簇即可获得出厂语义。
-8. **修正失败点**：离线隔离证明失败点是第 7 条 `op=1 field=20` 对 32B metadata 的越界读取；扩展到 168B 后原始配置直接可用。
+8. **修正失败点**：离线隔离把失败点收敛到第 7 条 `op=1 field=20` 对 32B metadata 的越界读取。真机单变量对照显示原始七条在 32B 与 168B 两种 metadata 下均可用，准入判据由 `op=2` 的命中与未命中决定。
 9. **边界实测**：合成 1 … 189 个成员、1 … 7 个流派的容器，确认容器数量、成员数与流派跨度均无上限；空容器可见但不可播；重复成员行无副作用。
+10. **跨代复核**：在 nano 5G 上重跑单变量序列，确认两代共用同一份原厂 `genius_config.data`，结构差异只在 `Dynamic.itdb.item_stats` 的一列。
+11. **自定义聚类**：以 `op=2` 的完全分量为标签池，把自定义聚类映射到簇 id，由 `tools/custom_graph.py` 写出并校验。
 
 ## 使用范围
 
-本项目面向已停产个人设备的本地数据库研究与维修维护，内容为公开的数据库结构与整数布局，以及自研修复脚本与整理后的规范文本。中文探索中的模拟结果来自离线分析，真机行为以来源记录为准。贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全问题见 [SECURITY.md](SECURITY.md)。
+本项目给出 iPod nano 的 Genius 数据库结构与整数布局，以及修复、对齐、聚类与模拟工具和规范文本。模拟结果来自离线分析，真机结果取自测量记录。贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全问题见 [SECURITY.md](SECURITY.md)。

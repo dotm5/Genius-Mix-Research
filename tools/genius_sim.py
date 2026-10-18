@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-iPod nano 6G Genius 生成流水线的离线模拟器，按固件语义复现：
+iPod nano Genius 生成流水线的离线模拟器，按固件语义复现：
 
     长度按 len(data) >> 3 解析 metadata；
     种子抽样用 LCG，只取第 0 次成功抽到的 primary；
@@ -349,15 +349,15 @@ class Playlist:
         s.qi = 0
         s.oi = 0               # pl+15 展开游标
 
-    # ---- sub_82B0CF8
+    # ---- 共用核心入口
     def consume(s, meta):
         s.round += 1
         for c, st in zip(s.constraints, s.states):
             c.consume(st, meta)
         s.out.append(meta['gid'])
 
-    # ---- sub_82C8F10 (候选扩展: 来自 genius_similarities)
-    #      pl+18 = "已用过"集合(sub_82E02AA 的去重),只有新 id 才入候选
+    # ---- 候选扩展：来自 genius_similarities
+    #      pl+18 = 已用集合（去重），只有新 id 才入候选
     def expand(s, meta, a3=0, a4=0):
         sims = s.ctx.sims_of(meta['gid'])
         n = len(sims)
@@ -379,7 +379,7 @@ class Playlist:
             got = True
         return got
 
-    # ---- sub_82B36FE  (第一段: pl+12 队列; 第二段: pl+15 输出列表)
+    # ---- 队列构建（第一段：pl+12 队列；第二段：pl+15 输出列表）
     def pump(s):
         got = False
         while s.qi < len(s.queue):
@@ -396,7 +396,7 @@ class Playlist:
                 got = True
         return got
 
-    # ---- sub_814AD1C
+    # ---- 约束链求值
     def eval_chain(s, meta):
         for c, st in zip(s.constraints, s.states):
             if not c.in_effect(st):
@@ -406,7 +406,7 @@ class Playlist:
                 return r
         return 0
 
-    # ---- sub_8147E20
+    # ---- 下一首
     def next_track(s):
         if s.round == 0x7FFFFFFF:
             return None
@@ -506,7 +506,7 @@ def main():
             members = db['members'][pid]
             gids = [db['genius_of'].get(p, 0) for p in members]
             gids = [g for g in gids if g]
-            # 模拟 sub_814E7E6 随机抽样选 primary(只用第 0 次抽样)
+            # 种子抽样选 primary（只用第 0 次抽样）
             rng = random.Random(a.rng)
             k = min(len(gids), 100)
             lst = list(gids)

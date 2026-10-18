@@ -9,8 +9,8 @@
 
 步骤:
  1. 备份设备上的 5 个 itdb 到 <backup-dir>/align-<时间戳>/
- 2. 校验：genius_config.data 与 genius_metadata.data 的长度符合目标机型
-    （默认 6G：151,212 B / 168 B；nano 5G 用 --config-len 151192 覆盖）
+ 2. 校验：genius_config.data 与 genius_metadata.data 的长度符合目标设置
+    （默认 151,212 B / 168 B；变体配置用 --config-len 覆盖）
  3. 覆盖写入并提交
 """
 import argparse, os, shutil, sqlite3, struct, sys, time
@@ -29,7 +29,7 @@ def main():
     ap.add_argument('--backup-dir', default=os.path.join('out', 'devbk'),
                     help='设备 itdb 快照的存放目录')
     ap.add_argument('--config-len', type=int, default=FACTORY_LEN,
-                    help='genius_config.data 期望长度；nano 5G 为 151192')
+                    help='genius_config.data 期望长度；原厂为 151212')
     ap.add_argument('--meta-len', type=int, default=META_LEN,
                     help='genius_metadata.data 期望长度')
     a = ap.parse_args()

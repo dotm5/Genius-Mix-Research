@@ -1,12 +1,14 @@
-# iPod nano 6G Genius Database Format and Mix Repair
+# Genius Mix Research: Data Format, Constraint Chain and Offline Tooling
 
 **English** | [简体中文](README.md)
 
 [![CI](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml/badge.svg)](https://github.com/dotm5/Genius-Restore/actions/workflows/ci.yml)
 
-Offline Genius Mix repair and format specification for the iPod nano (6th generation, discontinued). The repository documents the byte-level layout of the device `.itdb` databases, the Genius constraint-chain evaluation semantics and the Mix state-machine thresholds, and ships a toolchain that depends only on the Python standard library. The discovery path at the end records how the results converged from container enumeration to bytecode ablation.
+A study of the iTunes Genius Mix pipeline on the iPod nano (5th and 6th generation). The repository documents the byte-level layout of the device `.itdb` databases, the Genius constraint-chain evaluation semantics, the cluster adjacency graph, the Mix state-machine thresholds and playlist gating, and ships a toolchain that depends only on the Python standard library. The discovery path at the end records how the results converged from container enumeration to bytecode ablation.
 
-Genius has four independent data planes: the Kind-32 container holds candidate seeds, `genius_similarities` supplies candidate edges, `genius_metadata` stores four constraint keys, and `genius_config.data` carries the per-constraint bytecode. A Genius Mix is usable at `count >= 2` (target 10 tracks); a per-track playlist defaults to a target of 25 and a minimum of 10.
+Genius has four independent data planes: the Kind-32 container holds candidate seeds, `genius_similarities` supplies candidate edges, `genius_metadata` stores the constraint keys, and `genius_config.data` carries the per-constraint bytecode. A Genius Mix is usable at `count >= 2` (target 10 tracks); a per-track playlist defaults to a target of 25 and a minimum of 10.
+
+The 5th and 6th generation carry the same 151,212-byte `genius_config.data`, and their schemas differ by a single column in `Dynamic.itdb.item_stats`. The itemised comparison is in [cross-generation validation](docs/CROSSGEN.md).
 
 The reference documents under `docs/` are written in Chinese.
 
@@ -44,7 +46,7 @@ current track valid, genius_id nonzero     Kind-32 container walker
            stop at target; usable when count >= minimum and the object is valid
 ```
 
-The repair tool writes four valid `genius_id` values at same-container strides 1/5/9/13, producing a 32B row of constraint keys. Early notes named this construction a "same-container dense connected graph"; the third decoding round established that these slots are constraint keys and that candidate reachability comes from `genius_similarities`. Each node carries at most four references, and small containers may repeat a key.
+The repair tool writes four valid `genius_id` values at same-container strides 1/5/9/13, producing a 32B row of constraint keys. The construction is named the same-container dense connected graph in early notes; the third decoding round established that these slots are constraint keys and that candidate reachability comes from `genius_similarities`. Each node carries at most four references, and small containers may repeat a key.
 
 ## Ablation
 
@@ -64,7 +66,7 @@ Extending `genius_metadata.data` from 32B to **168B (21 u64 words)** makes the u
 
 Filling `metadata[0]` with an id from that table makes the `op=2` adjacency whitelist converge candidates by genre. The table has 33 connected components, several of them **complete graphs**: assigning one family of genres to different clusters inside the same component keeps the family mutually adjacent and filters across families. Candidates come from `genius_similarities` through a **library-level** pool; narrowing to container level leaves small containers short of candidates.
 
-Full procedure, parameters and validation are in the [alignment document](docs/ALIGN.md); device boundary measurements in the [boundary record](docs/BOUNDARY.md), the per-round device log in the [device test rounds](docs/ROUNDS.md), replay gain in the [gain note](docs/REPLAYGAIN.md), Mix naming and localization in the [naming note](docs/NAMING.md), and the 5th-generation validation in the [cross-generation note](docs/CROSSGEN.md) (all Chinese).
+Full procedure, parameters and validation are in the [alignment document](docs/ALIGN.md); device boundary measurements in the [boundary record](docs/BOUNDARY.md), the per-round device log in the [device test rounds](docs/ROUNDS.md), replay gain in the [gain note](docs/REPLAYGAIN.md), Mix naming and localization in the [naming note](docs/NAMING.md), and the device-level differences in the [cross-generation note](docs/CROSSGEN.md) (all Chinese).
 
 ## Quick start
 
@@ -93,10 +95,11 @@ Eject safely and restart the iPod, then check playback. Sync software overwrites
 |---|---|
 | `tools/apply_genius_mix_fix.py` | compatible option: keep containers, write 32B constraint keys and 48B / 108B configs |
 | `tools/cluster_align.py` | original-config option: cluster alignment, 168B metadata, library-level similarities |
+| `tools/cluster_graph.py` | decodes the `op=2` cluster table and reports connected and complete components |
+| `tools/custom_graph.py` | custom clustering: writes the first metadata slot and the similarities from a spec, then checks label adjacency per container |
 | `tools/genius_sim.py` | offline simulator: replays the generation pipeline for pre-deployment checks |
 | `tools/deploy_aligned.py` | deployment: snapshot backup, input validation, write |
 | `tools/boundary_matrix.py` | boundary fixture: synthesizes Kind-32 containers from a spec |
-| `tools/check_links.py` | docs check: validates relative Markdown links |
 
 All tools depend only on the Python standard library; `genius_sim.py` and `cluster_align.py` run fully offline.
 
@@ -109,9 +112,9 @@ All tools depend only on the Python standard library; `genius_sim.py` and `clust
 5. **Isolate the conflict**: converge the failure on `op=1 field=20` against the 32B metadata key 0, where the count stalls; the 168B, 21-word extension clears it.
 6. **Ship the repair**: write 32B constraint keys at same-container strides 1/5/9/13, with SQLite snapshot backup and a single write transaction.
 7. **Decode the cluster table**: the `op=2` adjacency table is an undirected graph, all 591 nodes carry self-loops, and several components are complete graphs; mapping genres into distinct clusters of one component reproduces factory semantics.
-8. **Correct the failure point**: offline isolation placed the failure at `op=1 field=20` reading past the 32B metadata; at 168B the original config runs unchanged.
+8. **Correct the failure point**: offline isolation placed the failure at `op=1 field=20` reading past the 32B metadata. Device-side single-variable runs show the original seven entries usable with both 32B and 168B metadata, with admission decided by whether `op=2` hits the cluster table.
 9. **Measure the boundaries**: containers synthesized with 1 … 189 members across 1 … 7 genres confirm that container count, member count and genre spread carry no device limit; an empty container appears in the list yet stays unplayable, and duplicate member rows have no effect.
 
 ## Scope
 
-This project covers local database research and repair for a discontinued personal device: the public database structures and integer layouts, together with the self-written repair, alignment and simulation tools and the accompanying specification text. The simulated results come from offline analysis; device behavior follows the recorded measurements. Contribution guidance lives in [CONTRIBUTING.md](CONTRIBUTING.md); security reports go through [SECURITY.md](SECURITY.md).
+This project covers the iPod nano Genius database structures and integer layouts, together with the repair, alignment, clustering and simulation tools and the specification text. The simulated results come from offline analysis; device results follow the measured records. Contribution guidance lives in [CONTRIBUTING.md](CONTRIBUTING.md); security reports go through [SECURITY.md](SECURITY.md).

@@ -11,7 +11,7 @@ body:
     attributes:
       label: Device
       description: Model and firmware version
-      placeholder: iPod nano 6G, firmware 1.2
+      placeholder: iPod nano, firmware version
     validations:
       required: true
   - type: dropdown

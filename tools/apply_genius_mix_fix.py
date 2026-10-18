@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""iPod nano 6G 合成 Genius Mix 修复：保留容器，改写约束键与最小配置。
+"""iPod nano 合成 Genius Mix 修复：保留容器，改写约束键与最小配置。
 
 默认使用 108B cfg_limits；48B cfg_empty 供回溯已有消融结论。
 全部配置从公开的整数布局构造。
 
 保留原修复工具的同容器步长 1/5/9/13 构造方法：每行 32B = 4×u64。
-后续记录已更正：这些 u64 是约束键；真正的候选图来自 similarities。
+这些 u64 是约束键，候选图由 similarities 提供。
 输入前提：已有非空 similarities；容器与曲目 ID 由同步软件维护。
 """
 
@@ -17,7 +17,7 @@ import sqlite3
 import struct
 
 
-# 历史变体的 44B 公共后缀。早期切片起于 random_jitter 的参数，
+# 历史变体的 44B 公共后缀。切片起于 random_jitter 的参数，
 # 承载原始实测的 48/108B 字节序列。
 # 解释器将前两个 u32 作为一个 u64，再读取一个 u32；剩余字节保留。
 COMPAT_SUFFIX = (70, 100, 1, 20, 50, 10, 10, 0, 0, 10, 20)
