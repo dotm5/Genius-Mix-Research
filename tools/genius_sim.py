@@ -16,6 +16,9 @@ iPod nano Genius 生成流水线的离线模拟器，按固件语义复现：
 """
 import argparse, os, sqlite3, struct, sys, json, random
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from genius_stats import mismatches
+
 # ---------------------------------------------------------------- 数据层
 
 def _open(p):
@@ -70,6 +73,13 @@ def load_db(d):
                     'select item_pid, date_played, play_count_user, date_skipped, '
                     'skip_count_user from item_stats'):
                 db['stats'][pid] = (dp or 0, pcu or 0, ds or 0, scu or 0)
+        except Exception:
+            pass
+    # 模拟器不读 item_stats.genius_id，但 6G 实机依赖它；这里只统计并提示。
+    db['stats_mismatch'] = 0
+    if L and D:
+        try:
+            db['stats_mismatch'] = len(mismatches(L, D))
         except Exception:
             pass
     return db
@@ -492,10 +502,19 @@ def main():
     ap.add_argument('--rng', type=int, default=1)
     ap.add_argument('--now', type=int, default=0)
     ap.add_argument('--json', action='store_true')
+    ap.add_argument('--strict-stats', action='store_true',
+                    help='item_stats.genius_id 不一致时直接失败（部署前检查）')
     ap.add_argument('--all-mixes', action='store_true')
     a = ap.parse_args()
 
     db = load_db(a.db)
+    stats_mismatch = db.get('stats_mismatch', 0)
+    if stats_mismatch:
+        msg = ('item_stats.genius_id 与 item.genius_id 不一致 %d 行；'
+               '模拟器不建模该一致性，6G 实机可能仍为空歌单。' % stats_mismatch)
+        if a.strict_stats:
+            raise SystemExit(msg)
+        print('[警告] ' + msg, file=sys.stderr)
     res = []
     if a.all_mixes or a.seed_mode == 'mix':
         conts = [(pid, c) for pid, c in db['containers'].items()

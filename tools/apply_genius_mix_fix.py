@@ -15,6 +15,10 @@ from datetime import datetime
 from pathlib import Path
 import sqlite3
 import struct
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from genius_stats import sync
 
 
 # 历史变体的 44B 公共后缀。切片起于 random_jitter 的参数，
@@ -134,8 +138,15 @@ def main():
         with closing(connect(db_dir / "Genius.itdb", writable=True)) as genius:
             updates = prepare_updates(library, genius)
             backup = backup_databases(db_dir, backup_root)
+            # 6G：item_stats.genius_id 必须与 item.genius_id 一致。
+            # 备份之后再同步，备份保留同步前状态；5G 无该列时自动跳过。
+            stats_line = (False, 0, 0, 0)
+            dynamic_path = db_dir / "Dynamic.itdb"
+            if dynamic_path.is_file():
+                with closing(connect(dynamic_path, writable=True)) as dynamic:
+                    stats_line = sync(library, dynamic)
+                    dynamic.commit()
             # 备份成功后，在单一事务内同时改写 metadata 和配置。
-            # Library 和 Dynamic 保持既有关系；stats 的 ID 同步属于输入前提。
             config = build_config(args.config)
             with genius:
                 genius.executemany(
@@ -143,6 +154,11 @@ def main():
                 genius.execute("UPDATE genius_config SET data=? WHERE id=1", (config,))
     print("备份：", backup)
     print("metadata：%d 行；配置：%dB" % (len(updates), len(config)))
+    if stats_line[0]:
+        print("item_stats.genius_id：写入 %d 行，清零 %d 行，剩余不一致 %d"
+              % (stats_line[1], stats_line[2], stats_line[3]))
+    else:
+        print("item_stats 无 genius_id 列（5G），跳过同步")
     print("完成。安全弹出 → 重启 iPod → 检查 Genius Mix 实际播放。")
 
 

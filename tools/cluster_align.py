@@ -16,6 +16,9 @@ metadata 写为 21 个 u64（168B），满足原厂配置第 7 条 op=1 field=20
 """
 import argparse, os, shutil, sqlite3, struct, sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from genius_stats import sync
+
 # ---- 家族定义(可改):流派名 -> 家族
 FAMILY = {
     'Dance': 'A', 'Electronic': 'A', 'House': 'A', '电子游戏': 'A', '舞曲': 'A',
@@ -116,6 +119,9 @@ def build(src, out, key_mode='mixed', sims_mode='library', verbose=True, ignore_
         pool = FAMILY_CLUSTERS[fam]
         genre_cluster[g] = pool[idx % len(pool)]
         fam_used[fam] += 1
+    outside = sorted({c for c in genre_cluster.values() if c not in table})
+    if outside:
+        raise SystemExit('流派簇不在 op=2 表内：%s' % outside)
     if verbose:
         for g in allgenres:
             print('  流派 %-16s -> 家族 %s  簇 %d' % (g, FAMILY.get(g, 'C'), genre_cluster[g]))
@@ -199,10 +205,19 @@ def build(src, out, key_mode='mixed', sims_mode='library', verbose=True, ignore_
     db['G'].execute('update genius_config set version=2, default_num_results=25, min_num_results=10')
     db['G'].commit()
     db['L'].commit()
+    # 6G：item_stats.genius_id 必须与 item.genius_id 一致（5G 无该列自动跳过）。
+    stats_line = sync(db['L'], db['D'])
+    db['D'].commit()
     if verbose:
         print('已写入:%d metadata 行,%d similarities 行,原厂 config %d B'
               % (len(md_rows), len(sim_rows), len(blob)))
-    return dict(meta=len(md_rows), sims=len(sim_rows), table=len(table))
+        if stats_line[0]:
+            print('item_stats.genius_id 同步:%d 行写入,%d 行清零,剩余不一致 %d'
+                  % (stats_line[1], stats_line[2], stats_line[3]))
+        else:
+            print('item_stats 无 genius_id 列（5G），跳过同步')
+    return dict(meta=len(md_rows), sims=len(sim_rows), table=len(table),
+                stats=stats_line)
 
 
 def main():

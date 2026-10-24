@@ -27,7 +27,9 @@ import struct
 import sys
 from collections import defaultdict
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cluster_graph import read_table, components, is_clique
+from genius_stats import has_genius_id, mismatches, sync
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -175,13 +177,22 @@ def build(args):
     library.executemany("update item set genius_id=? where pid=?",
                         [(g, p) for p, g in assigned.items()])
 
+    # 6G 的 Genius 持久标记在 Dynamic.itdb.item_stats.genius_id，必须与
+    # Library.itdb.item.genius_id 完全一致；不一致时歌单会出现但为空 /
+    # 提示“所选歌曲不可播放”。5G 的 item_stats 没有这一列，自动跳过。
+    has_stats_col, _, _, stats_remaining = sync(library, dynamic)
+    stats_mismatch = stats_remaining if has_stats_col else None
+
     label_of = {p: c["label"] for c in clusters for p in c["tracks"]}
     metadata = []
     for cluster in clusters:
         for pid in cluster["tracks"]:
+            gid = assigned[pid]
             slots = [0] * META_U64S
             slots[0] = cluster["label"]
-            metadata.append((assigned[pid], 2, struct.pack("<%dQ" % META_U64S, *slots)))
+            # distance 约束键（field 1/2/3/20）：逐首唯一，间隔约束不误杀。
+            slots[1] = slots[2] = slots[3] = slots[20] = gid
+            metadata.append((gid, 2, struct.pack("<%dQ" % META_U64S, *slots)))
     genius.executemany("insert or replace into genius_metadata values (?,?,?)", metadata)
 
     all_pids = [p for c in clusters for p in c["tracks"]]
@@ -231,6 +242,8 @@ def build(args):
 
     print("写入 genius_id %d 首，metadata %d 行，similarities %d 行" %
           (len(assigned), len(metadata), len(similarities)))
+    if stats_mismatch is not None:
+        print("同步 item_stats.genius_id，剩余不一致 %d 行" % stats_mismatch)
     for name, pid, count in made:
         print("容器 %-14s %d 首" % (name, count))
     print("输出 %s" % dst)
@@ -244,6 +257,7 @@ def check(args):
     directory = os.path.abspath(args.out)
     library = connect(os.path.join(directory, "Library.itdb"))
     genius = connect(os.path.join(directory, "Genius.itdb"))
+    dynamic = connect(os.path.join(directory, "Dynamic.itdb"))
     label_of = {}
     for gid, data in genius.execute("select genius_id, data from genius_metadata"):
         label_of[gid] = struct.unpack_from("<Q", data, 0)[0]
@@ -264,10 +278,19 @@ def check(args):
             ok = False
         print("%-14s 成员 %-4d 标签 %s %s" %
               (name, len(members), labels, "" if not bad else "不兼容 %s" % bad[:3]))
+    if has_genius_id(dynamic):
+        mismatch = mismatches(library, dynamic)
+        if mismatch:
+            ok = False
+        print("item_stats.genius_id 与 item.genius_id 不一致 %d 行" % len(mismatch))
+    else:
+        print("item_stats 没有 genius_id 列（5G），跳过一致性检查")
     print("")
-    print("结果 %s" % ("容器内标签两两相邻" if ok else "存在不相邻的标签"))
+    print("结果 %s" % ("容器内标签两两相邻且 item_stats 一致"
+                       if ok else "存在不相邻的标签或 item_stats 不一致"))
     library.close()
     genius.close()
+    dynamic.close()
 
 
 def main():

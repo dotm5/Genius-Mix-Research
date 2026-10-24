@@ -10,6 +10,17 @@ Genius 由四个独立数据面构成：Kind-32 容器保存候选种子，`geni
 
 第 5 代与第 6 代使用同一份 151,212 字节的原厂 `genius_config.data`，数据库结构只差 `Dynamic.itdb.item_stats` 的一列。逐项对照见[跨代验证](docs/CROSSGEN.md)。
 
+## 关键结论
+
+- 6G 的 `Dynamic.itdb.item_stats.genius_id` 必须与 `Library.itdb.item.genius_id`
+  逐首一致，否则 Mix 会出现但为空/不可播；生成与部署工具已自动同步/校验。
+- 回放增益有两条独立链：`item.relative_volume`（逐曲）与
+  `avformat_info.volume_normalization_energy`（音量平衡/Sound Check，
+  `X=1000*10^(-G/10)`）；设置只作用于后者。
+- 歌曲排序由 `item.title_order` 决定；`tools/fix_sort_orders.py` 按
+  A-Z（忽略冠词）→ 汉字拼音 → 数字重建，并同步 artist/album/genre 依赖表。
+- 详见 [关键结论](docs/CONCLUSIONS.md)。
+
 ## 机理总览
 
 ```text
@@ -82,24 +93,40 @@ python tools/apply_genius_mix_fix.py "$dbDir" --backup-dir "$backupDir"
 
 - 容器为 Kind-32，每个 Mix 至少包含两个不同且非零的 `genius_id`
 - 成员具备 metadata 与非空 similarities，各 Mix 成员互不重叠
-- `Dynamic.itdb.item_stats.genius_id` 与 `Library.itdb.item.genius_id` 一致
+- `Dynamic.itdb.item_stats.genius_id` 与 `Library.itdb.item.genius_id` 一致；生成与部署工具会自动同步并校验该列，`genius_sim.py --strict-stats` 可把不一致当作失败
 - 工具沿既有 similarities 图求值；新增可达性通过实际播放确认
 
 完成后安全弹出并重启 iPod，检查实际播放。同步软件会覆盖离线改动。恢复时退出同步软件，把备份目录中的数据库文件放回原库目录。
+
+### 音量平衡 / ReplayGain
+
+```bash
+# 1) 只扫描并生成专辑缓存（不改设备）
+python tools/apply_album_replaygain.py --dev I: --dry-run --resume --jobs 4
+
+# 2) 写 SoundCheck 并清零旧的 relative_volume
+python tools/apply_soundcheck_from_replaygain.py --dev I: --apply
+```
 
 ## 工具
 
 | 文件 | 用途 |
 |---|---|
-| `tools/apply_genius_mix_fix.py` | 兼容方案：保留容器，写入 32B 约束键与 48B / 108B 配置 |
-| `tools/cluster_align.py` | 原始配置方案：簇对齐 + 168B metadata + 库级 similarities |
+| `tools/apply_genius_mix_fix.py` | 兼容方案：保留容器，写入 32B 约束键与 48B / 108B 配置，并同步 `item_stats.genius_id` |
+| `tools/cluster_align.py` | 原始配置方案：簇对齐 + 168B metadata + 库级 similarities，并同步 `item_stats.genius_id` |
 | `tools/cluster_graph.py` | 解码 `op=2` 簇邻接表，输出连通分量与完全分量 |
-| `tools/custom_graph.py` | 自定义聚类：按 spec 写出 metadata 首槽与 similarities，并校验容器内标签相邻 |
-| `tools/genius_sim.py` | 离线模拟器：按固件语义复现生成流程，部署前校验 |
-| `tools/deploy_aligned.py` | 部署：快照备份 + 输入校验 + 写入 |
+| `tools/custom_graph.py` | 自定义聚类：按 spec 写出 metadata 首槽与 similarities，同步 `item_stats.genius_id`，校验容器内标签相邻 |
+| `tools/genius_sim.py` | 离线模拟器：按固件语义复现生成流程；`--strict-stats` 在 `item_stats` 不一致时失败 |
+| `tools/deploy_aligned.py` | 部署：快照备份 + 输入校验（含 `item_stats` 一致性）+ 写入 + 刷盘 |
 | `tools/boundary_matrix.py` | 边界测试夹具：按规格合成 Kind-32 容器 |
+| `tools/genius_stats.py` | 6G `item_stats.genius_id` 的同步、校验与刷盘辅助；5G 自动降级为无操作 |
+| `tools/fix_sort_orders.py` | 重建歌曲/艺术家/专辑/流派排序键：A-Z（忽略冠词）→ 汉字拼音 → 数字，含依赖表与快照 |
+| `tools/apply_album_replaygain.py` | 专辑级 ffmpeg ReplayGain 扫描与缓存；`--dry-run` 只生成缓存，`--apply` 写 `relative_volume` |
+| `tools/apply_soundcheck_from_replaygain.py` | 复用专辑缓存写 SoundCheck `volume_normalization_energy`，并清零 `relative_volume` |
 
 全部工具只依赖 Python 标准库；`genius_sim.py` 与 `cluster_align.py` 可完全离线运行。
+生成器、部署器与模拟器共用 `tools/genius_stats.py`：6G 上逐首同步
+`Dynamic.itdb.item_stats.genius_id`，5G 上自动跳过。
 
 ## 发现路径
 

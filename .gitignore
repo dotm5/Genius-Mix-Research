@@ -22,6 +22,7 @@
 __pycache__/
 *.py[cod]
 backups/
+artifacts/
 out/
 private/
 .venv/

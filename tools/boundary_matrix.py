@@ -13,7 +13,10 @@
 用法:
     python tools/boundary_matrix.py --dir <itlp 副本目录> [--apply] [--clean] [--spec 规格.json]
 """
-import argparse, os, shutil, sqlite3, struct, time
+import argparse, os, shutil, sqlite3, struct, sys, time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from genius_stats import sync
 
 BOUNDARIES = [
     ('B1',       1, 0),   # (name, member_count, duplicate_extra)
@@ -73,6 +76,11 @@ def main():
             L.execute('delete from container_seed where container_pid=?', (pid,))
             D.execute('delete from container_ui where container_pid=?', (pid,))
         L.commit(); D.commit()
+        stats_line = sync(L, D)
+        D.commit()
+        if stats_line[0]:
+            print('item_stats.genius_id 同步:%d 行,剩余不一致 %d'
+                  % (stats_line[1], stats_line[3]))
         print('移除 %d 个边界容器' % len(pids))
         if not a.apply:
             return
@@ -137,6 +145,11 @@ def main():
               % (name, sel, got, cnt, dup))
 
     L.commit(); D.commit()
+    stats_line = sync(L, D)
+    D.commit()
+    if stats_line[0]:
+        print('item_stats.genius_id 同步:%d 行,剩余不一致 %d'
+              % (stats_line[1], stats_line[3]))
     print('完成')
 
 
