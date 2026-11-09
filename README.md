@@ -10,6 +10,8 @@ Genius 由四个独立数据面构成：Kind-32 容器保存候选种子，`geni
 
 第 5 代与第 6 代使用同一份 151,212 字节的原厂 `genius_config.data`，数据库结构只差 `Dynamic.itdb.item_stats` 的一列。逐项对照见[跨代验证](docs/CROSSGEN.md)。
 
+**iTunes 原生同步实验：**在 Windows iTunes 12.13.11.1 与 nano 6G 1.2 上，从宿主 `.itl` 和配对 Genius 图投影的自建 Mix 经重启和重复同步保留；设备写入由 iTunes 完成。实验范围、宿主侧构造、变更标记暂存工具与未解决问题见 [原生同步记录](docs/ITUNES_NATIVE_SYNC.md)。该工具尚非完整建图或一键部署方案。
+
 ## 关键结论
 
 - 6G 的 `Dynamic.itdb.item_stats.genius_id` 必须与 `Library.itdb.item.genius_id`
@@ -96,7 +98,7 @@ python tools/apply_genius_mix_fix.py "$dbDir" --backup-dir "$backupDir"
 - `Dynamic.itdb.item_stats.genius_id` 与 `Library.itdb.item.genius_id` 一致；生成与部署工具会自动同步并校验该列，`genius_sim.py --strict-stats` 可把不一致当作失败
 - 工具沿既有 similarities 图求值；新增可达性通过实际播放确认
 
-完成后安全弹出并重启 iPod，检查实际播放。同步软件会覆盖离线改动。恢复时退出同步软件，把备份目录中的数据库文件放回原库目录。
+完成后安全弹出并重启 iPod，检查实际播放。同步软件可能覆盖这些设备侧离线改动；宿主侧原生投影是单独的[实验路径](docs/ITUNES_NATIVE_SYNC.md)。恢复旧快照前应核对新曲、评分和其他状态，避免覆盖后续改动。
 
 ### 音量平衡 / ReplayGain
 
@@ -123,6 +125,7 @@ python tools/apply_soundcheck_from_replaygain.py --dev I: --apply
 | `tools/fix_sort_orders.py` | 重建歌曲/艺术家/专辑/流派排序键：A-Z（忽略冠词）→ 汉字拼音 → 数字，含依赖表与快照 |
 | `tools/apply_album_replaygain.py` | 专辑级 ffmpeg ReplayGain 扫描与缓存；`--dry-run` 只生成缓存，`--apply` 写 `relative_volume` |
 | `tools/apply_soundcheck_from_replaygain.py` | 复用专辑缓存写 SoundCheck `volume_normalization_energy`，并清零 `relative_volume` |
+| `tools/stage_itunes_revisions.py` | Windows：对宿主 `.itl` 副本暂存 Genius 变更标记；需要匹配的已解密宿主 Genius 库，不负责建图、解密或部署 |
 
 全部工具只依赖 Python 标准库；`genius_sim.py` 与 `cluster_align.py` 可完全离线运行。
 生成器、部署器与模拟器共用 `tools/genius_stats.py`：6G 上逐首同步

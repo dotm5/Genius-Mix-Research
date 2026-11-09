@@ -26,8 +26,9 @@ nano 6G 有两个独立的回放增益字段：
 | Sound Check | `avformat_info.volume_normalization_energy` | `X = clamp(round(1000*10^(-G/10)), 0, 65534)` | `0` = 无数据/等同 `1000`；`1000` = 0 dB；`X>1000` 衰减，`X<1000` 提升 |
 
 - `G` 是目标增益（dB），负值表示曲目偏响、需要衰减。
-- 文件内的 `iTunNORM` 标签设备**不读**；固件的 MP4 元数据读取器只接受
-  `iTunSMPB`。要改变设备音量，必须改 itdb。
+- 固件消费设备库中的响度值；本轮以实验媒体副本中的 `iTunNORM` 让 iTunes
+  重新读取并原生同步了设备 Sound Check，故无需直接改设备 itdb。
+  设备直接读取文件标签的覆盖范围不能据此推断。
 - 「设置 → 音乐 → 音量平衡」读取 `Playback.SoundCheck`，作用的是
   `volume_normalization_energy`，**不读** `item.relative_volume`。
 - 设备只在宿主生成过 Sound Check 数据时才能工作；`vne=0` 时开关无听感变化。
@@ -65,7 +66,7 @@ nano 6G 有两个独立的回放增益字段：
 - 6G 上 `item_stats.genius_id == item.genius_id`，5G 无该列。
 - 部署前校验 `genius_config` / `genius_metadata` / `genius_similarities` 非空；
   部署后刷盘。
-- 离线模拟器不建模 `item_stats.genius_id`，需要时加 `--strict-stats`。
+- 离线模拟器按 Genius ID 关联统计；`--strict-stats` 可检查 6G 的 ID 一致性。
 - 所有会写设备的工具在写入前备份 `.itdb` / `.cbk`。
 
 ## 5 相关文档
@@ -74,3 +75,4 @@ nano 6G 有两个独立的回放增益字段：
 - [歌曲/艺术家/专辑排序](SORTING.md)
 - [Genius Mix 空歌单排障](TROUBLESHOOTING_EMPTY_MIX.md)
 - [数据格式与约束链](FORMAT.md)
+- [原厂 iTunes 同步自建 Mix](ITUNES_NATIVE_SYNC.md)

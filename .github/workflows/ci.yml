@@ -30,3 +30,15 @@ jobs:
             echo "== $tool"
             python "$tool" --help > /dev/null
           done
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+  windows-cng:
+    name: Windows CNG and unit tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s tests -v

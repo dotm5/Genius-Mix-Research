@@ -10,6 +10,8 @@ Genius has four independent data planes: the Kind-32 container holds candidate s
 
 The 5th and 6th generation carry the same 151,212-byte `genius_config.data`, and their schemas differ by a single column in `Dynamic.itdb.item_stats`. The itemised comparison is in [cross-generation validation](docs/CROSSGEN.md).
 
+**Native iTunes sync experiment:** on Windows iTunes 12.13.11.1 and nano 6G 1.2, custom Mixes projected from the host `.itl` and matching Genius graph survived restart and repeated sync, with iTunes performing the device writes. See the [experiment and limitations](docs/ITUNES_NATIVE_SYNC.md). The revision staging tool is not a complete graph builder or one-click deployment solution.
+
 The reference documents under `docs/` are written in Chinese.
 
 ## Mechanism overview
@@ -87,7 +89,7 @@ The tool validates its input, snapshots every `.itdb` through the SQLite backup 
 - `Dynamic.itdb.item_stats.genius_id` matching `Library.itdb.item.genius_id`
 - evaluation over the existing similarities graph; new reachability confirmed by playback
 
-Eject safely and restart the iPod, then check playback. Sync software overwrites offline edits. To restore, quit the sync software and copy the database files from the backup directory back into the library directory.
+Eject safely and restart the iPod, then check playback. Sync software may overwrite device-side edits; the [host-side projection experiment](docs/ITUNES_NATIVE_SYNC.md) is a separate path. Before restoring an older snapshot, check for newer tracks, ratings and other state that it could overwrite.
 
 ## Tools
 
@@ -100,6 +102,7 @@ Eject safely and restart the iPod, then check playback. Sync software overwrites
 | `tools/genius_sim.py` | offline simulator: replays the generation pipeline for pre-deployment checks |
 | `tools/deploy_aligned.py` | deployment: snapshot backup, input validation, write |
 | `tools/boundary_matrix.py` | boundary fixture: synthesizes Kind-32 containers from a spec |
+| `tools/stage_itunes_revisions.py` | Windows: stage experimental revision markers in a copied host `.itl`; requires a matching decrypted host Genius database and does not build the graph or deploy |
 
 All tools depend only on the Python standard library; `genius_sim.py` and `cluster_align.py` run fully offline.
 
