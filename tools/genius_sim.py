@@ -4,7 +4,7 @@
 iPod nano Genius 生成流水线的离线模拟器，按固件语义复现：
 
     长度按 len(data) >> 3 解析 metadata；
-    种子抽样用 LCG，只取第 0 次成功抽到的 primary；
+    种子抽样使用 Python 随机数，只取第 0 次成功抽到的 primary；
     首曲消费后按 similarities 顺序扩展候选队列；
     每轮逐个候选求值约束链（distance / compatible_genre / skip_count / random_jitter）；
     全部否决时放松一次约束并继续扩展，直到达到 target 或循环条件结束。
@@ -14,7 +14,8 @@ iPod nano Genius 生成流水线的离线模拟器，按固件语义复现：
 
 <目录> 下需有 Library.itdb / Genius.itdb / Dynamic.itdb（或给出单文件路径）。
 """
-import argparse, os, sqlite3, struct, sys, json, random
+import argparse, os, sqlite3, struct, sys, json, random, time
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from genius_stats import mismatches
@@ -24,7 +25,7 @@ from genius_stats import mismatches
 def _open(p):
     if not os.path.exists(p):
         return None
-    c = sqlite3.connect(p)
+    c = sqlite3.connect(Path(p).resolve().as_uri() + '?mode=ro', uri=True)
     return c
 
 def load_db(d):
@@ -69,19 +70,27 @@ def load_db(d):
     db['stats'] = {}
     if D:
         try:
-            for pid, dp, pcu, ds, scu in D.execute(
+            columns = {r[1] for r in D.execute('pragma table_info(item_stats)')}
+            gid_column = ', genius_id' if 'genius_id' in columns else ''
+            for row in D.execute(
                     'select item_pid, date_played, play_count_user, date_skipped, '
-                    'skip_count_user from item_stats'):
-                db['stats'][pid] = (dp or 0, pcu or 0, ds or 0, scu or 0)
-        except Exception:
-            pass
-    # 模拟器不读 item_stats.genius_id，但 6G 实机依赖它；这里只统计并提示。
+                    'skip_count_user' + gid_column + ' from item_stats'):
+                pid, dp, pcu, ds, scu = row[:5]
+                gid = row[5] if gid_column else db['genius_of'].get(pid)
+                if gid:
+                    db['stats'][gid] = (dp or 0, pcu or 0, ds or 0, scu or 0)
+        except sqlite3.Error as exc:
+            raise RuntimeError('Cannot read device Genius statistics') from exc
+    # Check 6G identity mismatches separately from loading the statistics.
     db['stats_mismatch'] = 0
     if L and D:
         try:
             db['stats_mismatch'] = len(mismatches(L, D))
-        except Exception:
-            pass
+        except sqlite3.Error as exc:
+            raise RuntimeError('Cannot verify item_stats.genius_id consistency') from exc
+    for connection in (L, G, D):
+        if connection is not None:
+            connection.close()
     return db
 
 def parse_sims(data):
@@ -272,9 +281,9 @@ class SkipCount(Constraint):
             return 0
         if not (s.min_skips < sc):
             return 0
-        if s.play_gap != 0 and not (s.play_gap > (dp - ds)):
+        if s.play_gap != 0 and not (s.play_gap > ((dp - ds) & 0xFFFFFFFF)):
             return 0
-        if not (s.window > (ctx.now - ds)):
+        if not (s.window > ((ctx.now - ds) & 0xFFFFFFFF)):
             return 0
         if not (100 * sc > s.pct * (sc + pc)):
             return 0
@@ -500,12 +509,14 @@ def main():
     ap.add_argument('--seed-gid', type=int, default=None)
     ap.add_argument('--container', type=int, default=None)
     ap.add_argument('--rng', type=int, default=1)
-    ap.add_argument('--now', type=int, default=0)
+    ap.add_argument('--now', type=int, default=None,
+                    help='Mac-epoch seconds (default: current time; set for reproducibility)')
     ap.add_argument('--json', action='store_true')
     ap.add_argument('--strict-stats', action='store_true',
                     help='item_stats.genius_id 不一致时直接失败（部署前检查）')
     ap.add_argument('--all-mixes', action='store_true')
     a = ap.parse_args()
+    now = int(time.time()) - 978307200 if a.now is None else a.now
 
     db = load_db(a.db)
     stats_mismatch = db.get('stats_mismatch', 0)
@@ -544,7 +555,7 @@ def main():
                 res.append({'container': c['name'], 'pid': pid, 'members': len(gids),
                             'primary': None, 'usable': False, 'count': 0, 'tracks': []})
                 continue
-            r = generate(db, primary, a.rng, a.now, is_mix=True)
+            r = generate(db, primary, a.rng, now, is_mix=True)
             r['container'] = c['name']
             r['pid'] = pid
             r['members'] = len(gids)
@@ -553,7 +564,7 @@ def main():
     else:
         gids = [g for g in (a.seed_gid,) if g] or list(db['meta'].keys())
         for g in gids[:1]:
-            res.append(generate(db, g, a.rng, a.now, is_mix=False))
+            res.append(generate(db, g, a.rng, now, is_mix=False))
 
     if a.json:
         print(json.dumps(res, ensure_ascii=False, indent=1))
