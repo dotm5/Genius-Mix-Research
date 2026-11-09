@@ -11,9 +11,10 @@ Python 3.9 or newer, standard library only.
 ```bash
 python -m compileall -q tools
 for tool in tools/*.py; do python "$tool" --help; done
+python -m unittest discover -s tests -v
 ```
 
-CI runs the same commands on Python 3.9 and 3.12.
+CI runs these commands on Python 3.9 and 3.12, plus tests on Windows for the Windows CNG host-library staging path.
 
 ## Device measurements
 

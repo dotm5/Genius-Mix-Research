@@ -1,6 +1,6 @@
 # 回放增益与音量平衡（ReplayGain / Sound Check）
 
-nano 5G/6G 有两条**独立**的回放增益链，均直接写 `Library.itdb`，不需要修改音频文件。
+nano 5G/6G 有两条**独立**的回放增益链。本文旧工具直接写 `Library.itdb`；另有经 iTunes 读取音频副本并同步 Sound Check 的实验路径。
 设备端的设置项「音量平衡」（Sound Check）只使用第二条链。
 
 ## 1 两条链
@@ -14,8 +14,7 @@ nano 5G/6G 有两条**独立**的回放增益链，均直接写 `Library.itdb`�
 
 ### 1.1 文件标签
 
-- 固件**不读**文件内的 `iTunNORM` / `REPLAYGAIN_*` 标签；MP4 元数据读取器只接受
-  `iTunSMPB`。
+- 已定位的固件播放路径消费设备库响度字段；文件标签的其他读取路径未完全审计。
 - 宿主 iTunes/Music 会读 `iTunNORM` 并生成设备 DB 里的 Sound Check 数据；
   若宿主从未分析过曲目，设备端 `vne=0`，开关不会有听感变化。
 - Apple 用户指南明确：iTunes 未打开 Sound Check 时，只在设备端打开没有效果。
@@ -78,7 +77,9 @@ python tools/apply_album_replaygain.py --dev I: --apply --resume --jobs 4
 
 ## 5 同步注意
 
-- iTunes 同步可能覆盖 `avformat_info` / `item.relative_volume`；同步后重跑 3.2。
+- iTunes 同步可能覆盖设备侧直写的 `avformat_info` / `item.relative_volume`。
+  在 nano 6G 本轮实验中，iTunes 读取媒体副本中的 `iTunNORM` 后可原生同步
+  Sound Check；避免在未经审计时同步后自动重写设备库。见[原生同步记录](ITUNES_NATIVE_SYNC.md)。
 - 设备设置里的音量平衡需保持开启。
 - 两条链不要同时部署；推荐 Sound Check（`vne`），并把 `relative_volume` 清零。
 
