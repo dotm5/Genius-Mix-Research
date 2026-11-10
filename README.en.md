@@ -6,6 +6,10 @@
 
 A study of the iTunes Genius Mix pipeline on the iPod nano (5th and 6th generation). The repository documents the byte-level layout of the device `.itdb` databases, the Genius constraint-chain evaluation semantics, the cluster adjacency graph, the Mix state-machine thresholds and playlist gating, and ships a toolchain that depends only on the Python standard library. The discovery path at the end records how the results converged from container enumeration to bytecode ablation.
 
+> “Anyway, you find my playlist at a very Chinese time in your life. Music so good, even a *Devil May Cry*.”
+>
+> **「任何路，你发现我的玩耍清单在一个非常中国时间在你的人生里。音乐如此好，甚至一个恶魔五月哭。」**
+
 Genius has four independent data planes: the Kind-32 container holds candidate seeds, `genius_similarities` supplies candidate edges, `genius_metadata` stores the constraint keys, and `genius_config.data` carries the per-constraint bytecode. A Genius Mix is usable at `count >= 2` (target 10 tracks); a per-track playlist defaults to a target of 25 and a minimum of 10.
 
 The 5th and 6th generation carry the same 151,212-byte `genius_config.data`, and their schemas differ by a single column in `Dynamic.itdb.item_stats`. The itemised comparison is in [cross-generation validation](docs/CROSSGEN.md).

@@ -6,6 +6,10 @@
 
 针对 iPod nano 第 5 代与第 6 代的 iTunes Genius Mix 研究。仓库给出设备 `.itdb` 数据库的字节级布局、Genius 约束链求值语义、簇邻接图、Mix 状态机门槛与歌单门控，以及一套仅依赖 Python 标准库的修复、对齐、聚类与模拟工具。文末的发现路径给出结论从容器枚举到字节码消融的收敛过程。
 
+> “Anyway, you find my playlist at a very Chinese time in your life. Music so good, even a *Devil May Cry*.”
+>
+> **「任何路，你发现我的玩耍清单在一个非常中国时间在你的人生里。音乐如此好，甚至一个恶魔五月哭。」**
+
 Genius 由四个独立数据面构成：Kind-32 容器保存候选种子，`genius_similarities` 提供候选边，`genius_metadata` 存储约束键，`genius_config.data` 是逐条约束的字节码。Mix 的可用阈值为 `count >= 2`（目标 10 首）；按曲目生成歌单的默认目标为 25 首、下限 10 首。
 
 第 5 代与第 6 代使用同一份 151,212 字节的原厂 `genius_config.data`，数据库结构只差 `Dynamic.itdb.item_stats` 的一列。逐项对照见[跨代验证](docs/CROSSGEN.md)。
